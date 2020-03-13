@@ -110,10 +110,17 @@ void onInitialization() {
 }
 
 Circle* calcCircleLine(vec2 p1, vec2 p2) {
+	float lengthDiff = length(p2) - length(p1);
+	float xDiff = p2.x - p1.x;
+	float yDiff = p2.y - p1.y;
+
 	vec2 c;
-	c.y = -(1 + length(p1) - 2 * p1.x * (length(p2) - length(p1)) / (2 * p2.x - 2 * p1.x)) / 
-	      (-2 * p1.y - 2 * p1.x * (2 * p1.y - 2 * p2.y) / (2 * p2.x - 2 * p1.x));
-	c.x = (c.y * (2 * p1.y - 2 * p2.y) + length(p2) - length(p1)) / (2 * p2.x - 2 * p1.x);
+
+	c.y = (p1.x * lengthDiff - xDiff * (1 + length(p1))) /
+	      (p1.x * yDiff - p1.y * xDiff) / 2;
+
+	c.x = (-c.y * yDiff + lengthDiff / 2) / xDiff;
+
 	float r = length(c - p1);
 	return new Circle(vec2(c.x, c.y), r);
 }
