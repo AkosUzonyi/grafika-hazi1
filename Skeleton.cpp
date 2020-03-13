@@ -38,15 +38,27 @@ class Circle {
 	float r;
 	float angleStep;
 
-	unsigned int vao, vbo;
+	unsigned int vao = 0, vbo = 0;
 	int coordCount = 0;
+
+	Circle(const Circle& c) = default;
+	Circle& operator=(const Circle& c) = default;
 
 public:
 
 	Circle(vec2 centre, float r, float angleStep = 0.001f) : centre(centre), r(r), angleStep(angleStep) {}
 
-	Circle(const Circle& c) = delete;
-	Circle& operator=(const Circle& c) = delete;
+	Circle(Circle&& c) : Circle(c) {
+		c.vao = 0;
+		c.vbo = 0;
+	}
+
+	Circle& operator=(Circle&& c) {
+		*this = c;
+		c.vao = 0;
+		c.vbo = 0;
+		return *this;
+	}
 
 	void createBuffer() {
 		std::vector<vec2> coords;
@@ -68,6 +80,11 @@ public:
 	void draw() {
 		glBindVertexArray(vao);
 		glDrawArrays(GL_LINE_STRIP, 0, coordCount);
+	}
+
+	~Circle() {
+		glDeleteVertexArrays(1, &vao);
+		glDeleteBuffers(1, &vbo);
 	}
 };
 
