@@ -117,7 +117,7 @@ const char * const fragmentSource = R"(
 GPUProgram gpuProgram; // vertex and fragment shaders
 
 Circle circle(vec2(0, 0), 1);
-Circle* clickCircle = nullptr;
+std::vector<Circle> clickCircles;
 
 // Initialization, create an OpenGL context
 void onInitialization() {
@@ -126,7 +126,7 @@ void onInitialization() {
 	gpuProgram.create(vertexSource, fragmentSource, "outColor");
 }
 
-Circle* calcCircleLine(vec2 p1, vec2 p2) {
+Circle calcCircleLine(vec2 p1, vec2 p2) {
 	float lengthDiff = length(p2) - length(p1);
 	float xDiff = p2.x - p1.x;
 	float yDiff = p2.y - p1.y;
@@ -139,7 +139,7 @@ Circle* calcCircleLine(vec2 p1, vec2 p2) {
 	c.x = (-c.y * yDiff + lengthDiff / 2) / xDiff;
 
 	float r = length(c - p1);
-	return new Circle(vec2(c.x, c.y), r);
+	return Circle(vec2(c.x, c.y), r);
 }
 
 // Window has become invalid: Redraw
@@ -161,8 +161,8 @@ void onDisplay() {
 
 	circle.draw();
 
-	if (clickCircle)
-		clickCircle->draw();
+	for (auto& clickCircle : clickCircles)
+		clickCircle.draw();
 
 	glutSwapBuffers(); // exchange buffers for double buffering
 }
@@ -194,14 +194,14 @@ void onMouse(int button, int state, int pX, int pY) { // pX, pY are the pixel co
 
 	if (state == GLUT_DOWN) {
 		clicks.push_back(vec2(cX, cY));
-		if (clicks.size() >= 2) {
-			if (clickCircle)
-				delete clickCircle;
-
-			clickCircle = calcCircleLine(clicks[0], clicks[1]);
-			clickCircle->createBuffer();
+		if (clicks.size() >= 3) {
+			clickCircles.clear();
+			clickCircles.push_back(calcCircleLine(clicks[0], clicks[1]));
+			clickCircles.push_back(calcCircleLine(clicks[1], clicks[2]));
+			clickCircles.push_back(calcCircleLine(clicks[2], clicks[0]));
+			for (auto& clickCircle : clickCircles)
+				clickCircle.createBuffer();
 			glutPostRedisplay();
-
 			clicks.clear();
 		}
 	}
