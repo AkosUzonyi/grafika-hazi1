@@ -33,6 +33,27 @@
 //=============================================================================================
 #include "framework.h"
 
+void cutCoords(std::vector<vec2>& coords) {
+	auto it = coords.begin();
+	while (it != coords.end() && length(*it) <= 1)
+		it++;
+
+	if (it == coords.end())
+		return;
+
+	std::copy(coords.begin(), it, std::back_inserter(coords));
+
+	while (it != coords.end() && length(*it) > 1)
+		it++;
+
+	it = coords.erase(coords.begin(), it);
+
+	while (it != coords.end() && length(*it) <= 1)
+		it++;
+
+	coords.erase(it, coords.end());
+}
+
 class Circle {
 	vec2 centre;
 	float r;
@@ -65,8 +86,10 @@ public:
 		for (float angle = 0; angle < 2 * M_PI + angleStep; angle += angleStep) {
 			vec2 c(cos(angle) * r + centre.x, sin(angle) * r + centre.y);
 			coords.push_back(c);
-			coordCount++;
 		}
+
+		cutCoords(coords);
+		coordCount = coords.size();
 
 		glGenVertexArrays(1, &vao);
 		glBindVertexArray(vao);
