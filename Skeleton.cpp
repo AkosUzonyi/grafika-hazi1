@@ -105,6 +105,14 @@ public:
 		glDrawArrays(GL_LINE_STRIP, 0, coordCount);
 	}
 
+	vec2 getCentre() const {
+		return centre;
+	}
+
+	float getRadius() const {
+		return r;
+	}
+
 	~Circle() {
 		glDeleteVertexArrays(1, &vao);
 		glDeleteBuffers(1, &vbo);
@@ -141,6 +149,7 @@ GPUProgram gpuProgram; // vertex and fragment shaders
 
 Circle circle(vec2(0, 0), 1);
 std::vector<Circle> clickCircles;
+std::vector<vec2> clickPoints;
 
 // Initialization, create an OpenGL context
 void onInitialization() {
@@ -207,8 +216,6 @@ void onMouseMotion(int pX, int pY) {	// pX, pY are the pixel coordinates of the 
 	printf("Mouse moved to (%3.2f, %3.2f)\n", cX, cY);
 }
 
-std::vector<vec2> clicks;
-
 // Mouse click event
 void onMouse(int button, int state, int pX, int pY) { // pX, pY are the pixel coordinates of the cursor in the coordinate system of the operation system
 	// Convert to normalized device space
@@ -216,16 +223,31 @@ void onMouse(int button, int state, int pX, int pY) { // pX, pY are the pixel co
 	float cY = 1.0f - 2.0f * pY / windowHeight;
 
 	if (state == GLUT_DOWN) {
-		clicks.push_back(vec2(cX, cY));
-		if (clicks.size() >= 3) {
+		if (clickPoints.size() >= 3) {
+			clickPoints.clear();
 			clickCircles.clear();
-			clickCircles.push_back(calcCircleLine(clicks[0], clicks[1]));
-			clickCircles.push_back(calcCircleLine(clicks[1], clicks[2]));
-			clickCircles.push_back(calcCircleLine(clicks[2], clicks[0]));
+		}
+
+		clickPoints.push_back(vec2(cX, cY));
+		if (clickPoints.size() == 3) {
+			clickCircles.push_back(calcCircleLine(clickPoints[0], clickPoints[1]));
+			clickCircles.push_back(calcCircleLine(clickPoints[1], clickPoints[2]));
+			clickCircles.push_back(calcCircleLine(clickPoints[2], clickPoints[0]));
+
+			vec2 normal1 = clickPoints[0] - clickCircles[0].getCentre();
+			vec3 line1(normal1.x, normal1.y, -dot(normal1, clickPoints[0]));
+
+			vec2 normal2 = clickPoints[1] - clickCircles[1].getCentre();
+			vec3 line2(normal2.x, normal2.y, -dot(normal2, clickPoints[1]));
+
+			vec3 centerPointv3 = cross(line1, line2);
+			vec2 centerPoint = vec2(centerPointv3.x / centerPointv3.z, centerPointv3.y / centerPointv3.z);
+
+			clickCircles.push_back(Circle(centerPoint, 0.01f));
+
 			for (auto& clickCircle : clickCircles)
 				clickCircle.createBuffer();
 			glutPostRedisplay();
-			clicks.clear();
 		}
 	}
 
