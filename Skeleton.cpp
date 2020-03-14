@@ -84,7 +84,7 @@ public:
 		glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, 0);
 	}
 
-	void draw() {
+	void draw() const {
 		glBindVertexArray(vao);
 		glDrawArrays(GL_LINE_STRIP, 0, coordCount);
 	}
@@ -97,7 +97,83 @@ public:
 		return r;
 	}
 
+	unsigned int getVBO() const {
+		return vbo;
+	}
+
+	int getCoordCount() const {
+		return coordCount;
+	}
+
 	~Circle() {
+		glDeleteVertexArrays(1, &vao);
+		glDeleteBuffers(1, &vbo);
+	}
+};
+
+class Triangle {
+	unsigned int vao = 0, vbo = 0;
+	int coordCount = 0;
+
+	Triangle(const Triangle& c) = default;
+	Triangle& operator=(const Triangle& c) = default;
+
+public:
+	Triangle() {}
+
+	void build(std::vector<Circle>& circles, std::vector<vec2>& points) {
+		vec2 normal1 = points[0] - circles[0].getCentre();
+		vec3 line1(normal1.x, normal1.y, -dot(normal1, points[0]));
+
+		vec2 normal2 = points[1] - circles[1].getCentre();
+		vec3 line2(normal2.x, normal2.y, -dot(normal2, points[1]));
+
+		vec3 centerPointv3 = cross(line1, line2);
+		vec2 centerPoint = vec2(centerPointv3.x / centerPointv3.z, centerPointv3.y / centerPointv3.z);
+
+		coordCount = 1;
+		for (auto& circle : circles)
+			coordCount += circle.getCoordCount();
+
+		glGenBuffers(1, &vbo);
+		glBindBuffer(GL_COPY_WRITE_BUFFER, vbo);
+		glBufferData(GL_COPY_WRITE_BUFFER, coordCount * sizeof(vec2), nullptr, GL_DYNAMIC_DRAW);
+
+		int offset = 0;
+		glBufferSubData(GL_COPY_WRITE_BUFFER, 0, sizeof(vec2), &centerPoint);
+		offset += sizeof(vec2);
+		for (auto& circle : circles) {
+			int len = circle.getCoordCount() * sizeof(vec2);
+			glBindBuffer(GL_COPY_READ_BUFFER, circle.getVBO());
+			glCopyBufferSubData(GL_COPY_READ_BUFFER, GL_COPY_WRITE_BUFFER, 0, offset, len);
+			offset += len;
+		}
+
+		glBindBuffer(GL_ARRAY_BUFFER, vbo);
+		glGenVertexArrays(1, &vao);
+		glBindVertexArray(vao);
+		glEnableVertexAttribArray(0);
+		glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, 0);
+	}
+
+	void draw() const {
+		glBindVertexArray(vao);
+		glDrawArrays(GL_TRIANGLE_FAN, 0, coordCount);
+	}
+
+	Triangle(Triangle&& t) : Triangle(t) {
+		t.vao = 0;
+		t.vbo = 0;
+	}
+
+	Triangle& operator=(Triangle&& t) {
+		*this = t;
+		t.vao = 0;
+		t.vbo = 0;
+		return *this;
+	}
+
+	~Triangle() {
 		glDeleteVertexArrays(1, &vao);
 		glDeleteBuffers(1, &vbo);
 	}
@@ -134,6 +210,7 @@ GPUProgram gpuProgram; // vertex and fragment shaders
 Circle circle(vec2(0, 0), 1);
 std::vector<Circle> clickCircles;
 std::vector<vec2> clickPoints;
+Triangle triangle;
 
 // Initialization, create an OpenGL context
 void onInitialization() {
@@ -169,20 +246,19 @@ void onDisplay() {
 	glClearColor(0, 0, 0, 0);     // background color
 	glClear(GL_COLOR_BUFFER_BIT); // clear frame buffer
 
-	// Set color to (0, 1, 0) = green
-	int location = glGetUniformLocation(gpuProgram.getId(), "color");
-	glUniform3f(location, 0.0f, 1.0f, 0.0f); // 3 floats
-
 	float MVPtransf[4][4] = { 1, 0, 0, 0,    // MVP matrix,
 							  0, 1, 0, 0,    // row-major!
 							  0, 0, 1, 0,
 							  0, 0, 0, 1 };
 
-	location = glGetUniformLocation(gpuProgram.getId(), "MVP");	// Get the GPU location of uniform variable MVP
+	int location = glGetUniformLocation(gpuProgram.getId(), "MVP");	// Get the GPU location of uniform variable MVP
 	glUniformMatrix4fv(location, 1, GL_TRUE, &MVPtransf[0][0]);	// Load a 4x4 row-major float matrix to the specified location
 
+	gpuProgram.setUniform(vec3(1, 1, 1), "color");
 	circle.draw();
-
+	gpuProgram.setUniform(vec3(0, 1, 0), "color");
+	triangle.draw();
+	gpuProgram.setUniform(vec3(0, 0, 1), "color");
 	for (auto& clickCircle : clickCircles)
 		clickCircle.draw();
 
@@ -223,20 +299,10 @@ void onMouse(int button, int state, int pX, int pY) { // pX, pY are the pixel co
 			clickCircles.push_back(calcCircleLine(clickPoints[0], clickPoints[1]));
 			clickCircles.push_back(calcCircleLine(clickPoints[1], clickPoints[2]));
 			clickCircles.push_back(calcCircleLine(clickPoints[2], clickPoints[0]));
-
-			vec2 normal1 = clickPoints[0] - clickCircles[0].getCentre();
-			vec3 line1(normal1.x, normal1.y, -dot(normal1, clickPoints[0]));
-
-			vec2 normal2 = clickPoints[1] - clickCircles[1].getCentre();
-			vec3 line2(normal2.x, normal2.y, -dot(normal2, clickPoints[1]));
-
-			vec3 centerPointv3 = cross(line1, line2);
-			vec2 centerPoint = vec2(centerPointv3.x / centerPointv3.z, centerPointv3.y / centerPointv3.z);
-
-			clickCircles.push_back(Circle(centerPoint, 0.01f));
-
 			for (auto& clickCircle : clickCircles)
 				clickCircle.createBuffer();
+
+			triangle.build(clickCircles, clickPoints);
 			glutPostRedisplay();
 		}
 	}
