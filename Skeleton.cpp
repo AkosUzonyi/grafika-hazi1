@@ -113,7 +113,7 @@ public:
 
 class Triangle {
 	unsigned int vao = 0, vbo = 0;
-	int coordCount = 0;
+	std::vector<int> coordCounts;
 
 	Triangle(const Triangle& c) = default;
 	Triangle& operator=(const Triangle& c) = default;
@@ -131,22 +131,29 @@ public:
 		vec3 centerPointv3 = cross(line1, line2);
 		vec2 centerPoint = vec2(centerPointv3.x / centerPointv3.z, centerPointv3.y / centerPointv3.z);
 
-		coordCount = 1;
+		int coordCount = 0;
 		for (auto& circle : circles)
-			coordCount += circle.getCoordCount();
+			coordCount += circle.getCoordCount() + 1;
 
 		glGenBuffers(1, &vbo);
 		glBindBuffer(GL_COPY_WRITE_BUFFER, vbo);
 		glBufferData(GL_COPY_WRITE_BUFFER, coordCount * sizeof(vec2), nullptr, GL_DYNAMIC_DRAW);
 
 		int offset = 0;
-		glBufferSubData(GL_COPY_WRITE_BUFFER, 0, sizeof(vec2), &centerPoint);
-		offset += sizeof(vec2);
+		coordCounts.clear();
 		for (auto& circle : circles) {
-			int len = circle.getCoordCount() * sizeof(vec2);
+			int len;
+
+			len = sizeof(vec2);
+			glBufferSubData(GL_COPY_WRITE_BUFFER, offset, len, &centerPoint);
+			offset += len;
+
+			len = circle.getCoordCount() * sizeof(vec2);
 			glBindBuffer(GL_COPY_READ_BUFFER, circle.getVBO());
 			glCopyBufferSubData(GL_COPY_READ_BUFFER, GL_COPY_WRITE_BUFFER, 0, offset, len);
 			offset += len;
+
+			coordCounts.push_back(circle.getCoordCount() + 1);
 		}
 
 		glBindBuffer(GL_ARRAY_BUFFER, vbo);
@@ -158,7 +165,11 @@ public:
 
 	void draw() const {
 		glBindVertexArray(vao);
-		glDrawArrays(GL_TRIANGLE_FAN, 0, coordCount);
+		int start = 0;
+		for (int coordCount : coordCounts) {
+			glDrawArrays(GL_TRIANGLE_FAN, start, coordCount);
+			start += coordCount;
+		}
 	}
 
 	Triangle(Triangle&& t) : Triangle(t) {
