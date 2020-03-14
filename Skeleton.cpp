@@ -33,6 +33,8 @@
 //=============================================================================================
 #include "framework.h"
 
+const float angleStep = 0.001f;
+
 void cutCoords(std::vector<vec2>& coords) {
 	auto it = coords.begin();
 	while (it != coords.end() && length(*it) <= 1)
@@ -57,7 +59,6 @@ void cutCoords(std::vector<vec2>& coords) {
 class Circle {
 	vec2 centre;
 	float r;
-	float angleStep;
 
 	unsigned int vao = 0, vbo = 0;
 	int coordCount = 0;
@@ -67,7 +68,7 @@ class Circle {
 
 public:
 
-	Circle(vec2 centre, float r, float angleStep = 0.001f) : centre(centre), r(r), angleStep(angleStep) {}
+	Circle(vec2 centre, float r) : centre(centre), r(r) {}
 
 	Circle(Circle&& c) : Circle(c) {
 		c.vao = 0;
