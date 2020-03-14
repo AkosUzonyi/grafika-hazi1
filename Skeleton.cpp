@@ -35,30 +35,10 @@
 
 const float angleStep = 0.001f;
 
-void cutCoords(std::vector<vec2>& coords) {
-	auto it = coords.begin();
-	while (it != coords.end() && length(*it) <= 1)
-		it++;
-
-	if (it == coords.end())
-		return;
-
-	std::copy(coords.begin(), it, std::back_inserter(coords));
-
-	while (it != coords.end() && length(*it) > 1)
-		it++;
-
-	it = coords.erase(coords.begin(), it);
-
-	while (it != coords.end() && length(*it) <= 1)
-		it++;
-
-	coords.erase(it, coords.end());
-}
-
 class Circle {
 	vec2 centre;
 	float r;
+	float fromAngle, toAngle;
 
 	unsigned int vao = 0, vbo = 0;
 	int coordCount = 0;
@@ -68,7 +48,10 @@ class Circle {
 
 public:
 
-	Circle(vec2 centre, float r) : centre(centre), r(r) {}
+	Circle(vec2 centre, float r, float fromAngle = -M_PI, float toAngle = M_PI) : centre(centre), r(r), fromAngle(fromAngle), toAngle(toAngle) {
+		if (toAngle < fromAngle)
+			toAngle += 2 * M_PI;
+	}
 
 	Circle(Circle&& c) : Circle(c) {
 		c.vao = 0;
@@ -84,12 +67,12 @@ public:
 
 	void createBuffer() {
 		std::vector<vec2> coords;
-		for (float angle = 0; angle < 2 * M_PI + angleStep; angle += angleStep) {
+
+		for (float angle = fromAngle; angle < toAngle; angle += angleStep) {
 			vec2 c(cos(angle) * r + centre.x, sin(angle) * r + centre.y);
 			coords.push_back(c);
 		}
 
-		cutCoords(coords);
 		coordCount = coords.size();
 
 		glGenVertexArrays(1, &vao);
@@ -172,7 +155,13 @@ Circle calcCircleLine(vec2 p1, vec2 p2) {
 	c.x = (-c.y * yDiff + lengthDiff / 2) / xDiff;
 
 	float r = length(c - p1);
-	return Circle(vec2(c.x, c.y), r);
+
+	vec2 cp1 = p1 - c;
+	vec2 cp2 = p2 - c;
+	float a1 = atan2(cp1.y, cp1.x);
+	float a2 = atan2(cp2.y, cp2.x);
+
+	return Circle(vec2(c.x, c.y), r, abs(a2 - a1) < M_PI ? std::min(a1, a2) : std::max(a1, a2), abs(a2 - a1) < M_PI ? std::max(a1, a2) : std::min(a1, a2));
 }
 
 // Window has become invalid: Redraw
