@@ -67,11 +67,18 @@ public:
 
 	void createBuffer() {
 		std::vector<vec2> coords;
+		float pathLen = 0;
 
 		for (float angle = fromAngle; angle < toAngle; angle += angleStep) {
 			vec2 c(cos(angle) * r + centre.x, sin(angle) * r + centre.y);
+			if (!coords.empty()) {
+				vec2 prev = coords[coords.size() - 1];
+				pathLen += length(prev - c) / (1 - dot(c, c));
+			}
 			coords.push_back(c);
 		}
+
+		printf("oldalhossz: %f\n", pathLen);
 
 		coordCount = coords.size();
 
