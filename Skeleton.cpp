@@ -49,8 +49,8 @@ class Circle {
 public:
 
 	Circle(vec2 centre, float r, float fromAngle = -M_PI, float toAngle = M_PI) : centre(centre), r(r), fromAngle(fromAngle), toAngle(toAngle) {
-		if (toAngle < fromAngle)
-			toAngle += 2 * M_PI;
+		if (this->toAngle < this->fromAngle)
+			this->toAngle += 2 * M_PI;
 	}
 
 	Circle(Circle&& c) : Circle(c) {
