@@ -238,25 +238,28 @@ void onInitialization() {
 }
 
 Circle calcCircleLine(vec2 p1, vec2 p2) {
-	float lengthDiff = length(p2) - length(p1);
-	float xDiff = p2.x - p1.x;
-	float yDiff = p2.y - p1.y;
+	vec2 centre;
 
-	vec2 c;
+	float a = p1.x;
+	float b = p1.y;
+	float c = p2.x - p1.x;
+	float d = p2.y - p1.y;
+	float e = (length(p1) + 1) / 2;
+	float f = (length(p2) - length(p1)) / 2;
 
-	c.y = (p1.x * lengthDiff - xDiff * (1 + length(p1))) /
-	      (p1.x * yDiff - p1.y * xDiff) / 2;
+	float det = a * d - b * c;
+	centre.x = d * e + -b * f;
+	centre.y = -c * e + a * f;
+	centre = centre / det;
 
-	c.x = (-c.y * yDiff + lengthDiff / 2) / xDiff;
+	float r = length(centre - p1);
 
-	float r = length(c - p1);
-
-	vec2 cp1 = p1 - c;
-	vec2 cp2 = p2 - c;
+	vec2 cp1 = p1 - centre;
+	vec2 cp2 = p2 - centre;
 	float a1 = atan2(cp1.y, cp1.x);
 	float a2 = atan2(cp2.y, cp2.x);
 
-	return Circle(vec2(c.x, c.y), r, abs(a2 - a1) < M_PI ? std::min(a1, a2) : std::max(a1, a2), abs(a2 - a1) < M_PI ? std::max(a1, a2) : std::min(a1, a2));
+	return Circle(centre, r, abs(a2 - a1) < M_PI ? std::min(a1, a2) : std::max(a1, a2), abs(a2 - a1) < M_PI ? std::max(a1, a2) : std::min(a1, a2));
 }
 
 // Window has become invalid: Redraw
