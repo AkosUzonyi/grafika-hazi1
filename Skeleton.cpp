@@ -245,7 +245,7 @@ Circle calcCircleLine(vec2 p1, vec2 p2) {
 	float c = p2.x - p1.x;
 	float d = p2.y - p1.y;
 	float e = (length(p1) + 1) / 2;
-	float f = (length(p2) - length(p1)) / 2;
+	float f = dot((p1 + p2) / 2, p2 - p1);
 
 	float det = a * d - b * c;
 	centre.x = d * e + -b * f;
