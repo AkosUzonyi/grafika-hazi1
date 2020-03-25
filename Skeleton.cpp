@@ -48,10 +48,7 @@ class Circle {
 
 public:
 
-	Circle(vec2 centre, float r, float fromAngle = -M_PI, float toAngle = M_PI) : centre(centre), r(r), fromAngle(fromAngle), toAngle(toAngle) {
-		if (this->toAngle < this->fromAngle)
-			this->toAngle += 2 * M_PI;
-	}
+	Circle(vec2 centre, float r, float fromAngle = -M_PI, float toAngle = M_PI) : centre(centre), r(r), fromAngle(fromAngle), toAngle(toAngle) {}
 
 	Circle(Circle&& c) : Circle(c) {
 		c.vao = 0;
@@ -259,7 +256,16 @@ Circle calcCircleLine(vec2 p1, vec2 p2) {
 	float a1 = atan2(cp1.y, cp1.x);
 	float a2 = atan2(cp2.y, cp2.x);
 
-	return Circle(centre, r, abs(a2 - a1) < M_PI ? std::min(a1, a2) : std::max(a1, a2), abs(a2 - a1) < M_PI ? std::max(a1, a2) : std::min(a1, a2));
+	float fromAngle, toAngle;
+	if (abs(a2 - a1) < M_PI) {
+		fromAngle = std::min(a1, a2);
+		toAngle = std::max(a1, a2);
+	} else {
+		fromAngle = std::max(a1, a2);
+		toAngle = std::min(a1, a2) + 2 * M_PI;
+	}
+
+	return Circle(centre, r, fromAngle, toAngle);
 }
 
 // Window has become invalid: Redraw
