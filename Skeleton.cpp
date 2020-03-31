@@ -33,6 +33,8 @@
 //=============================================================================================
 #include "framework.h"
 
+GPUProgram gpuProgram; // vertex and fragment shaders
+
 const float angleStep = 0.001f;
 
 class Circle {
@@ -115,6 +117,122 @@ public:
 	}
 };
 
+class Buffer2F {
+	unsigned int vao = 0, vbo = 0;
+	std::vector<vec2> coords;
+
+public:
+	void add(vec2 v) {
+		deleteBuffer();
+		coords.push_back(v);
+	}
+
+	const std::vector<vec2>& getCoords() const {
+		return coords;
+	}
+
+	void clear() {
+		coords.clear();
+		deleteBuffer();
+	}
+
+	void createBuffer() {
+		deleteBuffer();
+		glGenVertexArrays(1, &vao);
+		glBindVertexArray(vao);
+		glGenBuffers(1, &vbo);
+		glBindBuffer(GL_ARRAY_BUFFER, vbo);
+		glBufferData(GL_ARRAY_BUFFER, coords.size() * sizeof(vec2), &coords[0], GL_STATIC_DRAW);
+		glEnableVertexAttribArray(0);
+		glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, 0);
+	}
+
+	void deleteBuffer() {
+		glDeleteVertexArrays(1, &vao);
+		glDeleteBuffers(1, &vbo);
+		vao = vbo = 0;
+	}
+
+	void draw(GLenum mode) const {
+		glBindVertexArray(vao);
+		glDrawArrays(mode, 0, coords.size());
+	}
+
+	~Buffer2F() {
+		deleteBuffer();
+	}
+};
+
+class Polygon {
+	Buffer2F boundsBuffer;
+	Buffer2F fillBuffer;
+
+public:
+
+	void addLine(vec2 p1, vec2 p2) {
+		vec2 centre;
+
+		float a = p1.x;
+		float b = p1.y;
+		float c = p2.x - p1.x;
+		float d = p2.y - p1.y;
+		float e = (length(p1) + 1) / 2;
+		float f = dot((p1 + p2) / 2, p2 - p1);
+
+		float det = a * d - b * c;
+		centre.x = d * e + -b * f;
+		centre.y = -c * e + a * f;
+		centre = centre / det;
+
+		float r = length(centre - p1);
+
+		vec2 cp1 = p1 - centre;
+		vec2 cp2 = p2 - centre;
+		float a1 = atan2(cp1.y, cp1.x);
+		float a2 = atan2(cp2.y, cp2.x);
+
+		if (abs(a2 - a1) >= M_PI)
+			if (a1 < a2)
+				a1 +=  2 * M_PI;
+			else
+				a2 +=  2 * M_PI;
+
+		float pathLen = 0;
+
+		bool incr = a1 < a2;
+		for (float angle = a1; incr ? angle < a2 : angle > a2; angle += incr ? angleStep : -angleStep) {
+			vec2 c(cos(angle) * r + centre.x, sin(angle) * r + centre.y);
+			if (!boundsBuffer.getCoords().empty()) {
+				vec2 prev = boundsBuffer.getCoords()[boundsBuffer.getCoords().size() - 1];
+				pathLen += length(prev - c) / (1 - dot(c, c));
+			}
+			boundsBuffer.add(c);
+		}
+
+		printf("oldalhossz: %f\n", pathLen);
+	}
+
+	void clear() {
+		boundsBuffer.clear();
+		fillBuffer.clear();
+	}
+
+	void createBuffer() {
+		boundsBuffer.createBuffer();
+		fillBuffer.createBuffer();
+	}
+
+	void draw() const {
+		gpuProgram.setUniform(vec3(0, 0, 1), "color");
+		boundsBuffer.draw(GL_LINE_STRIP);
+		gpuProgram.setUniform(vec3(0, 1, 0), "color");
+		fillBuffer.draw(GL_TRIANGLES);
+	}
+
+	~Polygon() {
+	}
+};
+
 // vertex shader in GLSL: It is a Raw string (C++11) since it contains new line characters
 const char * const vertexSource = R"(
 	#version 330				// Shader 3.3
@@ -141,52 +259,15 @@ const char * const fragmentSource = R"(
 	}
 )";
 
-GPUProgram gpuProgram; // vertex and fragment shaders
-
 Circle circle(vec2(0, 0), 1);
-std::vector<Circle> clickCircles;
 std::vector<vec2> clickPoints;
-Triangle triangle;
+Polygon polygon;
 
 // Initialization, create an OpenGL context
 void onInitialization() {
 	glViewport(0, 0, windowWidth, windowHeight);
 	circle.createBuffer();
 	gpuProgram.create(vertexSource, fragmentSource, "outColor");
-}
-
-Circle calcCircleLine(vec2 p1, vec2 p2) {
-	vec2 centre;
-
-	float a = p1.x;
-	float b = p1.y;
-	float c = p2.x - p1.x;
-	float d = p2.y - p1.y;
-	float e = (length(p1) + 1) / 2;
-	float f = dot((p1 + p2) / 2, p2 - p1);
-
-	float det = a * d - b * c;
-	centre.x = d * e + -b * f;
-	centre.y = -c * e + a * f;
-	centre = centre / det;
-
-	float r = length(centre - p1);
-
-	vec2 cp1 = p1 - centre;
-	vec2 cp2 = p2 - centre;
-	float a1 = atan2(cp1.y, cp1.x);
-	float a2 = atan2(cp2.y, cp2.x);
-
-	float fromAngle, toAngle;
-	if (abs(a2 - a1) < M_PI) {
-		fromAngle = std::min(a1, a2);
-		toAngle = std::max(a1, a2);
-	} else {
-		fromAngle = std::max(a1, a2);
-		toAngle = std::min(a1, a2) + 2 * M_PI;
-	}
-
-	return Circle(centre, r, fromAngle, toAngle);
 }
 
 // Window has become invalid: Redraw
@@ -204,11 +285,7 @@ void onDisplay() {
 
 	gpuProgram.setUniform(vec3(1, 1, 1), "color");
 	circle.draw();
-	gpuProgram.setUniform(vec3(0, 1, 0), "color");
-	triangle.draw();
-	gpuProgram.setUniform(vec3(0, 0, 1), "color");
-	for (auto& clickCircle : clickCircles)
-		clickCircle.draw();
+	polygon.draw();
 
 	glutSwapBuffers(); // exchange buffers for double buffering
 }
@@ -239,18 +316,16 @@ void onMouse(int button, int state, int pX, int pY) { // pX, pY are the pixel co
 	if (state == GLUT_DOWN) {
 		if (clickPoints.size() >= 3) {
 			clickPoints.clear();
-			clickCircles.clear();
+			polygon.clear();
 		}
 
 		clickPoints.push_back(vec2(cX, cY));
 		if (clickPoints.size() == 3) {
-			clickCircles.push_back(calcCircleLine(clickPoints[0], clickPoints[1]));
-			clickCircles.push_back(calcCircleLine(clickPoints[1], clickPoints[2]));
-			clickCircles.push_back(calcCircleLine(clickPoints[2], clickPoints[0]));
-			for (auto& clickCircle : clickCircles)
-				clickCircle.createBuffer();
+			polygon.addLine(clickPoints[0], clickPoints[1]);
+			polygon.addLine(clickPoints[1], clickPoints[2]);
+			polygon.addLine(clickPoints[2], clickPoints[0]);
+			polygon.createBuffer();
 
-			triangle.build(clickCircles, clickPoints);
 			glutPostRedisplay();
 		}
 	}
