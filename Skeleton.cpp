@@ -37,86 +37,6 @@ GPUProgram gpuProgram; // vertex and fragment shaders
 
 const float angleStep = 0.001f;
 
-class Circle {
-	vec2 centre;
-	float r;
-	float fromAngle, toAngle;
-
-	unsigned int vao = 0, vbo = 0;
-	int coordCount = 0;
-
-	Circle(const Circle& c) = default;
-	Circle& operator=(const Circle& c) = default;
-
-public:
-
-	Circle(vec2 centre, float r, float fromAngle = -M_PI, float toAngle = M_PI) : centre(centre), r(r), fromAngle(fromAngle), toAngle(toAngle) {}
-
-	Circle(Circle&& c) : Circle(c) {
-		c.vao = 0;
-		c.vbo = 0;
-	}
-
-	Circle& operator=(Circle&& c) {
-		*this = c;
-		c.vao = 0;
-		c.vbo = 0;
-		return *this;
-	}
-
-	void createBuffer() {
-		std::vector<vec2> coords;
-		float pathLen = 0;
-
-		for (float angle = fromAngle; angle < toAngle; angle += angleStep) {
-			vec2 c(cos(angle) * r + centre.x, sin(angle) * r + centre.y);
-			if (!coords.empty()) {
-				vec2 prev = coords[coords.size() - 1];
-				pathLen += length(prev - c) / (1 - dot(c, c));
-			}
-			coords.push_back(c);
-		}
-
-		printf("oldalhossz: %f\n", pathLen);
-
-		coordCount = coords.size();
-
-		glGenVertexArrays(1, &vao);
-		glBindVertexArray(vao);
-		glGenBuffers(1, &vbo);
-		glBindBuffer(GL_ARRAY_BUFFER, vbo);
-		glBufferData(GL_ARRAY_BUFFER, coords.size() * sizeof(vec2), &coords[0], GL_STATIC_DRAW);
-		glEnableVertexAttribArray(0);
-		glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, 0);
-	}
-
-	void draw() const {
-		glBindVertexArray(vao);
-		glDrawArrays(GL_LINE_STRIP, 0, coordCount);
-	}
-
-	vec2 getCentre() const {
-		return centre;
-	}
-
-	float getRadius() const {
-		return r;
-	}
-
-	unsigned int getVBO() const {
-		return vbo;
-	}
-
-	int getCoordCount() const {
-		return coordCount;
-	}
-
-	~Circle() {
-		glDeleteVertexArrays(1, &vao);
-		glDeleteBuffers(1, &vbo);
-	}
-};
-
 class Buffer2F {
 	unsigned int vao = 0, vbo = 0;
 	std::vector<vec2> coords;
@@ -259,14 +179,18 @@ const char * const fragmentSource = R"(
 	}
 )";
 
-Circle circle(vec2(0, 0), 1);
+Buffer2F circleBuf;
 std::vector<vec2> clickPoints;
 Polygon polygon;
 
 // Initialization, create an OpenGL context
 void onInitialization() {
 	glViewport(0, 0, windowWidth, windowHeight);
-	circle.createBuffer();
+
+	for (float angle = 0; angle < 2 * M_PI; angle += angleStep)
+		circleBuf.add(vec2(cos(angle), sin(angle)));
+	circleBuf.createBuffer();
+
 	gpuProgram.create(vertexSource, fragmentSource, "outColor");
 }
 
@@ -284,7 +208,7 @@ void onDisplay() {
 	glUniformMatrix4fv(location, 1, GL_TRUE, &MVPtransf[0][0]);	// Load a 4x4 row-major float matrix to the specified location
 
 	gpuProgram.setUniform(vec3(1, 1, 1), "color");
-	circle.draw();
+	circleBuf.draw(GL_LINE_STRIP);
 	polygon.draw();
 
 	glutSwapBuffers(); // exchange buffers for double buffering
