@@ -35,8 +35,6 @@
 
 GPUProgram gpuProgram; // vertex and fragment shaders
 
-const float angleStep = 0.001f;
-
 class Buffer2F {
 	unsigned int vao = 0, vbo = 0;
 	std::vector<vec2> coords;
@@ -119,6 +117,7 @@ public:
 
 		float pathLen = 0;
 
+		float angleStep = 0.001f / r;
 		bool incr = a1 < a2;
 		for (float angle = a1; incr ? angle < a2 : angle > a2; angle += incr ? angleStep : -angleStep) {
 			vec2 c(cos(angle) * r + centre.x, sin(angle) * r + centre.y);
@@ -187,7 +186,7 @@ Polygon polygon;
 void onInitialization() {
 	glViewport(0, 0, windowWidth, windowHeight);
 
-	for (float angle = 0; angle < 2 * M_PI; angle += angleStep)
+	for (float angle = 0; angle < 2 * M_PI; angle += 0.001f)
 		circleBuf.add(vec2(cos(angle), sin(angle)));
 	circleBuf.createBuffer();
 
