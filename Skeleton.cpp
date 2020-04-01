@@ -35,6 +35,14 @@
 
 GPUProgram gpuProgram; // vertex and fragment shaders
 
+bool isLeftSide(vec2 l0, vec2 l1, vec2 p, float eps = 0) {
+	return cross(l1 - l0, p - l0).z > eps;
+}
+
+bool isPointInTriange(vec2 t0, vec2 t1, vec2 t2, vec2 p, float eps = 0) {
+	return isLeftSide(t0, t1, p, eps) && isLeftSide(t1, t2, p, eps) && isLeftSide(t2, t0, p, eps);
+}
+
 class Buffer2F {
 	unsigned int vao = 0, vbo = 0;
 	std::vector<vec2> coords;
@@ -72,6 +80,9 @@ public:
 	}
 
 	void draw(GLenum mode) const {
+		if (vao == 0)
+			return;
+
 		glBindVertexArray(vao);
 		glDrawArrays(mode, 0, coords.size());
 	}
@@ -117,9 +128,9 @@ public:
 
 		float pathLen = 0;
 
-		float angleStep = 0.001f / r;
+		float angleStep = 0.02f / r;
 		bool incr = a1 < a2;
-		for (float angle = a1; incr ? angle < a2 : angle > a2; angle += incr ? angleStep : -angleStep) {
+		for (float angle = a1; incr ? angle < a2: angle > a2; angle += incr ? angleStep : -angleStep) {
 			vec2 c(cos(angle) * r + centre.x, sin(angle) * r + centre.y);
 			if (!boundsBuffer.getCoords().empty()) {
 				vec2 prev = boundsBuffer.getCoords()[boundsBuffer.getCoords().size() - 1];
@@ -137,18 +148,57 @@ public:
 	}
 
 	void createBuffer() {
+		fill();
 		boundsBuffer.createBuffer();
 		fillBuffer.createBuffer();
 	}
 
-	void draw() const {
-		gpuProgram.setUniform(vec3(0, 0, 1), "color");
-		boundsBuffer.draw(GL_LINE_STRIP);
-		gpuProgram.setUniform(vec3(0, 1, 0), "color");
-		fillBuffer.draw(GL_TRIANGLES);
+	void fill() {
+		std::vector<vec2> coords = boundsBuffer.getCoords();
+		auto it = coords.begin();
+		bool changed = true;
+		while (coords.size() >= 3) {
+			if (it == coords.begin())
+				if (changed)
+					changed = false;
+				else
+					break;
+
+			vec2 v0 = it == coords.begin() ? *coords.end() : *(it - 1);
+			vec2 v1 = *it;
+			vec2 v2 = it == coords.end() ? *coords.begin() : *(it + 1);
+
+			if (!isLeftSide(v0, v1, v2, -0.00000000000f))
+				goto next;
+
+			for (auto i = coords.begin(); i < it - 1; i++)
+				if (isPointInTriange(v0, v1, v2, *i, 0.000001f))
+					goto next;
+			for (auto i = it + 2; i < coords.end(); i++)
+				if (isPointInTriange(v0, v1, v2, *i, 0.000001f))
+					goto next;
+
+			fillBuffer.add(v0);
+			fillBuffer.add(v1);
+			fillBuffer.add(v2);
+
+			changed = true;
+			coords.erase(it);
+			if (it == coords.end())
+				it = coords.begin();
+
+next:
+			it++;
+			if (it == coords.end())
+				it = coords.begin();
+		}
 	}
 
-	~Polygon() {
+	void draw() const {
+		gpuProgram.setUniform(vec3(0, 1, 0), "color");
+		fillBuffer.draw(GL_TRIANGLES);
+		gpuProgram.setUniform(vec3(0, 0, 1), "color");
+		boundsBuffer.draw(GL_LINE_STRIP);
 	}
 };
 
@@ -244,9 +294,15 @@ void onMouse(int button, int state, int pX, int pY) { // pX, pY are the pixel co
 
 		clickPoints.push_back(vec2(cX, cY));
 		if (clickPoints.size() == 3) {
-			polygon.addLine(clickPoints[0], clickPoints[1]);
-			polygon.addLine(clickPoints[1], clickPoints[2]);
-			polygon.addLine(clickPoints[2], clickPoints[0]);
+			if (isLeftSide(clickPoints[0], clickPoints[1], clickPoints[2])) {
+				polygon.addLine(clickPoints[0], clickPoints[1]);
+				polygon.addLine(clickPoints[1], clickPoints[2]);
+				polygon.addLine(clickPoints[2], clickPoints[0]);
+			} else {
+				polygon.addLine(clickPoints[0], clickPoints[2]);
+				polygon.addLine(clickPoints[2], clickPoints[1]);
+				polygon.addLine(clickPoints[1], clickPoints[0]);
+			}
 			polygon.createBuffer();
 
 			glutPostRedisplay();
