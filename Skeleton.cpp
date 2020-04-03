@@ -286,7 +286,19 @@ void onMouse(int button, int state, int pX, int pY) { // pX, pY are the pixel co
 	float cX = 2.0f * pX / windowWidth - 1;	// flip y axis
 	float cY = 1.0f - 2.0f * pY / windowHeight;
 
-	if (state == GLUT_DOWN) {
+	const char * buttonStat;
+	switch (state) {
+	case GLUT_DOWN: buttonStat = "pressed"; break;
+	case GLUT_UP:   buttonStat = "released"; break;
+	}
+
+	switch (button) {
+	case GLUT_LEFT_BUTTON:   printf("Left button %s at (%3.2f, %3.2f)\n", buttonStat, cX, cY);   break;
+	case GLUT_MIDDLE_BUTTON: printf("Middle button %s at (%3.2f, %3.2f)\n", buttonStat, cX, cY); break;
+	case GLUT_RIGHT_BUTTON:  printf("Right button %s at (%3.2f, %3.2f)\n", buttonStat, cX, cY);  break;
+	}
+
+	if (state == GLUT_UP) {
 		if (clickPoints.size() >= 3) {
 			clickPoints.clear();
 			polygon.clear();
@@ -307,18 +319,6 @@ void onMouse(int button, int state, int pX, int pY) { // pX, pY are the pixel co
 
 			glutPostRedisplay();
 		}
-	}
-
-	const char * buttonStat;
-	switch (state) {
-	case GLUT_DOWN: buttonStat = "pressed"; break;
-	case GLUT_UP:   buttonStat = "released"; break;
-	}
-
-	switch (button) {
-	case GLUT_LEFT_BUTTON:   printf("Left button %s at (%3.2f, %3.2f)\n", buttonStat, cX, cY);   break;
-	case GLUT_MIDDLE_BUTTON: printf("Middle button %s at (%3.2f, %3.2f)\n", buttonStat, cX, cY); break;
-	case GLUT_RIGHT_BUTTON:  printf("Right button %s at (%3.2f, %3.2f)\n", buttonStat, cX, cY);  break;
 	}
 }
 
