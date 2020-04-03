@@ -35,6 +35,10 @@
 
 GPUProgram gpuProgram; // vertex and fragment shaders
 
+float atanvec2(vec2 v) {
+	return atan2(v.y, v.x);
+}
+
 bool isLeftSide(vec2 l0, vec2 l1, vec2 p, float eps = 0) {
 	return cross(l1 - l0, p - l0).z > eps;
 }
@@ -115,10 +119,8 @@ public:
 
 		float r = length(centre - p1);
 
-		vec2 cp1 = p1 - centre;
-		vec2 cp2 = p2 - centre;
-		float a1 = atan2(cp1.y, cp1.x);
-		float a2 = atan2(cp2.y, cp2.x);
+		float a1 = atanvec2(p1 - centre);
+		float a2 = atanvec2(p2 - centre);
 
 		if (abs(a2 - a1) >= M_PI)
 			if (a1 < a2)
