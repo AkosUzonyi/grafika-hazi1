@@ -100,6 +100,8 @@ class Polygon {
 	Buffer2F boundsBuffer;
 	Buffer2F fillBuffer;
 
+	std::vector<vec3> angleLengthAngle;
+
 public:
 
 	void addLine(vec2 p1, vec2 p2) {
@@ -141,12 +143,28 @@ public:
 			boundsBuffer.add(c);
 		}
 
-		printf("oldalhossz: %f\n", pathLen);
+		float angleAdd = incr ? M_PI_2 : -M_PI_2;
+		angleLengthAngle.push_back(vec3(a1 + angleAdd, pathLen, a2 + angleAdd));
 	}
 
 	void clear() {
 		boundsBuffer.clear();
 		fillBuffer.clear();
+		angleLengthAngle.clear();
+	}
+
+	void printInfo() {
+		for (int i = 0; i < angleLengthAngle.size(); i++) {
+			vec3 v = angleLengthAngle[i];
+			vec3 vPrev = angleLengthAngle[i == 0 ? angleLengthAngle.size() - 1 : i - 1];
+
+			printf("oldalhossz: %f\n", v.y);
+			float angle = fmod(v.x - vPrev.z, 2 * M_PI);
+			if (angle < 0)
+				angle += 2 * M_PI;
+			angle = M_PI - angle;
+			printf("szog: %f\n", angle);
+		}
 	}
 
 	void createBuffer() {
@@ -318,6 +336,7 @@ void onMouse(int button, int state, int pX, int pY) { // pX, pY are the pixel co
 				polygon.addLine(clickPoints[1], clickPoints[0]);
 			}
 			polygon.createBuffer();
+			polygon.printInfo();
 
 			glutPostRedisplay();
 		}
