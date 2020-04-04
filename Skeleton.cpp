@@ -188,14 +188,14 @@ public:
 			vec2 v1 = *it;
 			vec2 v2 = it == coords.end() ? *coords.begin() : *(it + 1);
 
-			if (!isLeftSide(v0, v1, v2, -0.00000000000f))
+			if (!isLeftSide(v0, v1, v2))
 				goto next;
 
 			for (auto i = coords.begin(); i < it - 1; i++)
-				if (isPointInTriange(v0, v1, v2, *i, 0.000001f))
+				if (isPointInTriange(v0, v1, v2, *i))
 					goto next;
 			for (auto i = it + 2; i < coords.end(); i++)
-				if (isPointInTriange(v0, v1, v2, *i, 0.000001f))
+				if (isPointInTriange(v0, v1, v2, *i))
 					goto next;
 
 			fillBuffer.add(v0);
